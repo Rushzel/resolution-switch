@@ -1,0 +1,22 @@
+name: Build
+
+on: push
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build and self-test
+        shell: powershell
+        run: .\build.ps1
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" ResolutionSwitch.exe --title "Resolution Switch ${{ github.ref_name }}" --generate-notes

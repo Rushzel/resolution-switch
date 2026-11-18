@@ -1,6 +1,6 @@
 using System;
 using System.Drawing;
-using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -159,21 +159,16 @@ static class ResolutionSwitch
         return FontFamily.Families.FirstOrDefault(f => f.Name == "Segoe Fluent Icons") ?? new FontFamily("Segoe MDL2 Assets");
     }
 
-    static Icon DrawGlyph(string glyph, FontFamily font, Color color)
+    static Icon DrawGlyph(string glyph, FontFamily family, Color color)
     {
         int size = SystemInformation.SmallIconSize.Width;
         using (var bitmap = new Bitmap(size, size))
         using (var graphics = Graphics.FromImage(bitmap))
-        using (var path = new GraphicsPath())
+        using (var font = new Font(family, size, FontStyle.Regular, GraphicsUnit.Pixel))
         using (var brush = new SolidBrush(color))
-        using (var centre = new Matrix())
         {
-            graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            path.AddString(glyph, font, (int)FontStyle.Regular, size, Point.Empty, StringFormat.GenericTypographic);
-            var bounds = path.GetBounds();
-            centre.Translate((float)Math.Round((size - bounds.Width) / 2 - bounds.X), (float)Math.Round((size - bounds.Height) / 2 - bounds.Y));
-            path.Transform(centre);
-            graphics.FillPath(brush, path);
+            graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            graphics.DrawString(glyph, font, brush, 0, 0, StringFormat.GenericTypographic);
             return Icon.FromHandle(bitmap.GetHicon());
         }
     }

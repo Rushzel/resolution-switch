@@ -79,7 +79,32 @@ static class ResolutionSwitch
         public string Name;
         public int Width, Height, Hz;
         public bool Stretch;
+        public string Icon;
     }
+
+    sealed class IconChoice
+    {
+        public readonly string Key, Glyph, Label;
+
+        public IconChoice(string key, string glyph, string label)
+        {
+            Key = key;
+            Glyph = glyph;
+            Label = label;
+        }
+    }
+
+    static readonly IconChoice[] IconChoices =
+    {
+        new IconChoice("corners", NativeGlyph, "Screen corners"),
+        new IconChoice("sides", StretchGlyph, "Stretched sides"),
+        new IconChoice("monitor", "", "Monitor"),
+        new IconChoice("laptop", "", "Laptop"),
+        new IconChoice("fullscreen", "", "Full screen"),
+        new IconChoice("game", "", "Game controller"),
+        new IconChoice("video", "", "Video camera"),
+        new IconChoice("windows", "", "Windows"),
+    };
 
     static List<Mode> modes = new List<Mode>();
     static List<string> skippedLines = new List<string>();
@@ -88,13 +113,13 @@ static class ResolutionSwitch
     static string lastWarning = "";
     static NotifyIcon tray;
     static Form settingsWindow;
-    static Icon nativeIcon, stretchIcon, unknownIcon;
+    static Dictionary<string, Icon> trayIcons = new Dictionary<string, Icon>();
     static bool lightTaskbar;
 
     static Mode ParseMode(string line)
     {
         var parts = line.Split('|').Select(p => p.Trim()).ToArray();
-        if (parts.Length < 2 || parts.Length > 4 || parts[0].Length == 0) return null;
+        if (parts.Length < 2 || parts.Length > 5 || parts[0].Length == 0) return null;
         var size = parts[1].Split('x', 'X', '×');
         int width, height;
         if (size.Length != 2 || !int.TryParse(size[0], out width) || !int.TryParse(size[1], out height)) return null;
@@ -108,6 +133,13 @@ static class ResolutionSwitch
         if (option.Equals("stretch", StringComparison.OrdinalIgnoreCase) && !mode.Stretch)
         {
             mode.Stretch = true;
+            return true;
+        }
+        if (option.StartsWith("icon ", StringComparison.OrdinalIgnoreCase))
+        {
+            string key = option.Substring(5).Trim().ToLowerInvariant();
+            if (mode.Icon != null || !IconChoices.Any(c => c.Key == key)) return false;
+            mode.Icon = key;
             return true;
         }
         int hz;
@@ -132,8 +164,19 @@ static class ResolutionSwitch
 
     static string ToLine(Mode mode)
     {
-        return string.Format("{0} | {1}x{2}{3}{4}", mode.Name, mode.Width, mode.Height,
-            mode.Hz > 0 ? " | " + mode.Hz + " Hz" : "", mode.Stretch ? " | stretch" : "");
+        return string.Format("{0} | {1}x{2}{3}{4}{5}", mode.Name, mode.Width, mode.Height,
+            mode.Hz > 0 ? " | " + mode.Hz + " Hz" : "", mode.Stretch ? " | stretch" : "", mode.Icon != null ? " | icon " + mode.Icon : "");
+    }
+
+    static string AutomaticIcon(bool stretch)
+    {
+        return stretch ? "sides" : "corners";
+    }
+
+    static string GlyphFor(Mode mode)
+    {
+        string key = mode.Icon ?? AutomaticIcon(mode.Stretch);
+        return IconChoices.First(c => c.Key == key).Glyph;
     }
 
     static List<Mode> DefaultModes(IList<Size> sizes)
@@ -305,7 +348,7 @@ static class ResolutionSwitch
     {
         var current = Current();
         var active = Active();
-        tray.Icon = active == null ? unknownIcon : active.Stretch ? stretchIcon : nativeIcon;
+        tray.Icon = trayIcons[active == null ? UnknownGlyph : GlyphFor(active)];
         string detail = string.Format("\n{0} × {1} · {2} Hz", current.dmPelsWidth, current.dmPelsHeight, current.dmDisplayFrequency);
         string name = active != null ? active.Name : "Other resolution";
         tray.Text = name.Substring(0, Math.Min(name.Length, TooltipLimit - detail.Length)) + detail;
@@ -380,9 +423,12 @@ static class ResolutionSwitch
         FlushMenuThemes();
         var color = lightTaskbar ? Color.Black : Color.White;
         if (iconFont == null) iconFont = IconFont();
-        nativeIcon = Replace(nativeIcon, DrawGlyph(NativeGlyph, iconFont, color));
-        stretchIcon = Replace(stretchIcon, DrawGlyph(StretchGlyph, iconFont, color));
-        unknownIcon = Replace(unknownIcon, DrawGlyph(UnknownGlyph, iconFont, color));
+        foreach (var glyph in IconChoices.Select(c => c.Glyph).Concat(new[] { UnknownGlyph }))
+        {
+            Icon old;
+            trayIcons.TryGetValue(glyph, out old);
+            trayIcons[glyph] = Replace(old, DrawGlyph(glyph, iconFont, color));
+        }
     }
 
     static int Scaled(int pixels)
@@ -517,6 +563,11 @@ static class ResolutionSwitch
         rate.SelectedIndex = 0;
         resolution.SelectedItem = startSize;
         var stretch = new CheckBox { Text = "Stretch to fill the screen", Checked = start.Stretch, AutoSize = true, Margin = new Padding(Scaled(3), Scaled(8), Scaled(3), Scaled(3)) };
+        var picker = IconPicker(start.Icon ?? AutomaticIcon(start.Stretch));
+        stretch.CheckedChanged += (s, e) =>
+        {
+            if (ChosenIcon(picker) == AutomaticIcon(!stretch.Checked)) SelectIcon(picker, AutomaticIcon(stretch.Checked));
+        };
         var hint = HintLabel("", Scaled(300));
 
         var ok = NewButton("OK");
@@ -532,7 +583,9 @@ static class ResolutionSwitch
                 return;
             }
             var size = (Size)resolution.SelectedItem;
-            form.Tag = new Mode { Name = text, Width = size.Width, Height = size.Height, Hz = (int)rate.SelectedItem, Stretch = stretch.Checked };
+            string icon = ChosenIcon(picker);
+            form.Tag = new Mode { Name = text, Width = size.Width, Height = size.Height, Hz = (int)rate.SelectedItem, Stretch = stretch.Checked,
+                Icon = icon == AutomaticIcon(stretch.Checked) ? null : icon };
             form.DialogResult = DialogResult.OK;
         };
         form.AcceptButton = ok;
@@ -546,18 +599,80 @@ static class ResolutionSwitch
         grid.Controls.Add(TextLabel("Refresh rate"), 0, 2);
         grid.Controls.Add(rate, 1, 2);
         grid.Controls.Add(stretch, 1, 3);
-        grid.Controls.Add(hint, 0, 4);
+        var iconLabel = TextLabel("Icon");
+        iconLabel.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+        iconLabel.Margin = new Padding(Scaled(3), Scaled(14), Scaled(12), Scaled(6));
+        grid.Controls.Add(iconLabel, 0, 4);
+        grid.Controls.Add(picker, 1, 4);
+        grid.Controls.Add(hint, 0, 5);
         grid.SetColumnSpan(hint, 2);
         var buttons = Row(FlowDirection.RightToLeft);
         buttons.Anchor = AnchorStyles.Right;
         buttons.Margin = new Padding(0, Scaled(12), 0, 0);
         buttons.Controls.Add(cancel);
         buttons.Controls.Add(ok);
-        grid.Controls.Add(buttons, 0, 5);
+        grid.Controls.Add(buttons, 0, 6);
         grid.SetColumnSpan(buttons, 2);
         form.Controls.Add(grid);
         ApplyTheme(form);
         return form;
+    }
+
+    static FlowLayoutPanel IconPicker(string selected)
+    {
+        bool dark = AppsAreDark();
+        var normalText = dark ? Color.White : SystemColors.ControlText;
+        int side = Scaled(34), glyphSize = Scaled(16);
+        var picker = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MaximumSize = new Size(Scaled(228), 0), Margin = new Padding(Scaled(1), Scaled(6), 0, 0) };
+        var name = HintLabel("", Scaled(220));
+        name.Margin = new Padding(Scaled(2), Scaled(2), 0, 0);
+        var tips = new ToolTip();
+        var glyphFont = new Font(iconFont, glyphSize, FontStyle.Regular, GraphicsUnit.Pixel);
+        picker.Disposed += (s, e) => { tips.Dispose(); glyphFont.Dispose(); };
+        foreach (var choice in IconChoices)
+        {
+            var button = new RadioButton
+            {
+                Appearance = Appearance.Button,
+                FlatStyle = FlatStyle.Flat,
+                Tag = choice.Key,
+                AccessibleName = choice.Label,
+                Size = new Size(side, side),
+                Margin = new Padding(Scaled(2)),
+                BackColor = dark ? DarkField : SystemColors.Window,
+                ForeColor = normalText,
+            };
+            button.FlatAppearance.BorderColor = dark ? Color.FromArgb(85, 85, 85) : Color.FromArgb(200, 200, 200);
+            button.FlatAppearance.MouseOverBackColor = dark ? DarkSelection : LightSelection;
+            button.FlatAppearance.CheckedBackColor = SystemColors.Highlight;
+            button.CheckedChanged += (s, e) =>
+            {
+                button.ForeColor = button.Checked ? SystemColors.HighlightText : normalText;
+                if (button.Checked) name.Text = choice.Label;
+            };
+            button.Paint += (s, e) =>
+            {
+                e.Graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                using (var brush = new SolidBrush(button.ForeColor))
+                    e.Graphics.DrawString(choice.Glyph, glyphFont, brush, (side - glyphSize) / 2, (side - glyphSize) / 2, StringFormat.GenericTypographic);
+            };
+            tips.SetToolTip(button, choice.Label);
+            picker.Controls.Add(button);
+        }
+        picker.SetFlowBreak(picker.Controls[picker.Controls.Count - 1], true);
+        picker.Controls.Add(name);
+        SelectIcon(picker, selected);
+        return picker;
+    }
+
+    static string ChosenIcon(Control picker)
+    {
+        return (string)picker.Controls.OfType<RadioButton>().First(b => b.Checked).Tag;
+    }
+
+    static void SelectIcon(Control picker, string key)
+    {
+        picker.Controls.OfType<RadioButton>().First(b => (string)b.Tag == key).Checked = true;
     }
 
     static Mode EditMode(IWin32Window owner, Mode start)
@@ -586,7 +701,7 @@ static class ResolutionSwitch
         using (var glyphBrush = new SolidBrush(box.ForeColor))
         {
             e.Graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            e.Graphics.DrawString(mode.Stretch ? StretchGlyph : NativeGlyph, glyphFont, glyphBrush,
+            e.Graphics.DrawString(GlyphFor(mode), glyphFont, glyphBrush,
                 left, bounds.Y + (bounds.Height - Scaled(20)) / 2, StringFormat.GenericTypographic);
         }
     }
@@ -609,8 +724,8 @@ static class ResolutionSwitch
         box.DrawItem += (s, e) => DrawModeItem(box, list, e);
 
         var switchTo = NewButton("Switch to");
-        var add = NewButton("Add...");
-        var edit = NewButton("Edit...");
+        var add = NewButton("Add");
+        var edit = NewButton("Edit");
         var remove = NewButton("Remove");
         var up = NewButton("Move up");
         var down = NewButton("Move down");
@@ -726,7 +841,7 @@ static class ResolutionSwitch
             items.Add(new MenuItem(ModeLabel(mode), (s, a) => SwitchTo(target)) { RadioCheck = true, Checked = mode == active });
         }
         if (modes.Count > 0) items.Add("-");
-        items.Add("Edit modes...", (s, a) => OpenSettings());
+        items.Add("Edit modes", (s, a) => OpenSettings());
         items.Add(new MenuItem("Start with Windows", ToggleStartWithWindows) { Checked = StartsWithWindows() });
         items.Add("-");
         items.Add("Exit", (s, a) => { tray.Visible = false; Application.Exit(); });
@@ -805,11 +920,18 @@ static class ResolutionSwitch
             "Two rates | 1920x1080 | 60 Hz | 144 Hz",
             "No rate | 1920x1080 | 0 Hz",
             "Bad rate | 1920x1080 | fast Hz",
+            "Game | 1920x1080 | Icon Game",
+            "All | 1920x1440 | icon laptop | 144 Hz | stretch",
+            "Bad icon | 1920x1080 | icon rocket",
+            "Two icons | 1920x1080 | icon game | icon laptop",
         }, skipped);
         expect("good lines parse", Lines(parsed),
-            "Native | 2560x1440; SO2 stretched | 1920x1440 | stretch; Wide | 3440x1440; Fast | 1920x1080 | 144 Hz; Both | 1920x1440 | 240 Hz | stretch");
+            "Native | 2560x1440; SO2 stretched | 1920x1440 | stretch; Wide | 3440x1440; Fast | 1920x1080 | 144 Hz; Both | 1920x1440 | 240 Hz | stretch; " +
+            "Game | 1920x1080 | icon game; All | 1920x1440 | 144 Hz | stretch | icon laptop");
         expect("bad lines are named", string.Join(", ", skipped.Select(s => s.Substring(0, s.IndexOf(':')))),
-            "line 6, line 7, line 8, line 9, line 10, line 11, line 12, line 15, line 16, line 17, line 18");
+            "line 6, line 7, line 8, line 9, line 10, line 11, line 12, line 15, line 16, line 17, line 18, line 21, line 22");
+        expect("automatic icons", GlyphFor(parsed[0]) + GlyphFor(parsed[1]), NativeGlyph + StretchGlyph);
+        expect("chosen icon wins over stretch", GlyphFor(parsed[6]), "");
         expect("skipped line keeps its text", skipped.FirstOrDefault(), "line 6: no size");
         expect("empty file", Lines(ParseModes(new string[0], new List<string>())), "");
 
@@ -849,7 +971,7 @@ static class ResolutionSwitch
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             FollowTheme();
-            tray = new NotifyIcon { Icon = unknownIcon, ContextMenu = new ContextMenu(), Visible = true };
+            tray = new NotifyIcon { Icon = trayIcons[UnknownGlyph], ContextMenu = new ContextMenu(), Visible = true };
             tray.ContextMenu.Popup += FillMenu;
             tray.MouseClick += ClickIcon;
             SystemEvents.DisplaySettingsChanged += (s, e) => { KeepModeRate(); ShowState(); };

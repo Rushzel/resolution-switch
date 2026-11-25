@@ -16,7 +16,7 @@ Resolution Switch does it in one click from the taskbar and puts the refresh rat
 - **Left-click** the icon to move to the next mode in your list. With two modes it is a toggle.
 - **Right-click** for the menu: pick any mode, Edit modes, Start with Windows, or Exit. Each mode shows its resolution and the refresh rate it will use.
 - **Hover** to see the current mode, resolution and refresh rate.
-- **The icon shows the mode type:** screen corners for normal modes, stretched sides for stretched modes, and a question mark when the screen is at a resolution that is not in your list.
+- **The icon shows the mode:** screen corners for normal modes and stretched sides for stretched modes, unless you pick another icon for a mode, and a question mark when the screen is at a resolution that is not in your list.
 - **It keeps the refresh rate.** If anything changes the refresh rate while the screen is at one of your modes, for example Windows Settings, it sets the mode's rate again.
 - **It looks like part of Windows 11.** The icons are Windows' own Segoe Fluent Icons glyphs, white on a dark taskbar and black on a light one, and the menu and the Edit modes window turn dark or light with the Windows theme.
 
@@ -41,7 +41,8 @@ Right-click the icon and choose **Edit modes**. A window lists your modes in the
 
 - **Switch to** changes the screen to the selected mode straight away.
 
-- **Add** or **Edit** (or double-click a mode) opens a small form with the name, the resolution, the refresh rate and **Stretch to fill the screen**. The resolution and refresh rate lists only show what your monitor offers. The refresh rate can be **Highest**, which follows whatever is highest for that resolution, or a fixed rate such as 144 Hz.
+- **Add** or **Edit** (or double-click a mode) opens a small form with the name, the resolution, the refresh rate, **Stretch to fill the screen** and the icon. The resolution and refresh rate lists only show what your monitor offers. The refresh rate can be **Highest**, which follows whatever is highest for that resolution, or a fixed rate such as 144 Hz.
+- **Icon** is the taskbar icon for that mode: screen corners, stretched sides, monitor, laptop, full screen, game controller, video camera or windows. Hover a button to see its name. It starts on screen corners and moves to stretched sides when you tick Stretch, unless you have picked a different icon.
 - **Remove**, **Move up** and **Move down** do what they say.
 - Every change is saved straight away, and the taskbar icon uses it on the next click.
 
@@ -53,13 +54,15 @@ The window saves to a plain text file at `%APPDATA%\Resolution Switch\modes.txt`
 Name | WIDTHxHEIGHT
 Name | WIDTHxHEIGHT | stretch
 Name | WIDTHxHEIGHT | 144 Hz | stretch
+Name | WIDTHxHEIGHT | stretch | icon game
 ```
 
 - **Name** is what the menu and tooltip show.
 - **WIDTHxHEIGHT** is the resolution, such as `1920x1080`. Your monitor or graphics driver must list it.
 - **144 Hz** sets a fixed refresh rate. Without it, the mode uses the highest rate your monitor offers at that resolution. If the monitor does not offer the rate, the menu shows the mode as not available.
 - **stretch** fills the screen with the image. Without it, Windows keeps the scaling it is already using.
-- The refresh rate and `stretch` can come in either order, each at most once.
+- **icon** picks the taskbar icon: `corners`, `sides`, `monitor`, `laptop`, `fullscreen`, `game`, `video` or `windows`. Without it, the mode shows screen corners, or stretched sides when it has `stretch`.
+- The refresh rate, `stretch` and the icon can come in any order, each at most once.
 - The order of the lines is the order a left-click goes through.
 
 A change to the file applies the next time you click the icon or open the menu. Blank lines are ignored. A line it cannot read is skipped, and a notification names the line. The Edit modes window also lists those lines, because saving from the window removes them.
@@ -114,7 +117,7 @@ cd resolution-switch
 .\build.ps1
 ```
 
-`build.ps1` compiles `ResolutionSwitch.exe` and runs its self-test, which checks the modes-file reader, the refresh rate choice and the default modes with made-up display resolutions, without touching your screen. It exits with 0 when everything passes.
+`build.ps1` compiles `ResolutionSwitch.exe` and runs its self-test, which checks the modes-file reader, the refresh rate choice, the icon choice and the default modes with made-up display resolutions, without touching your screen. It exits with 0 when everything passes.
 
 Two command-line checks are built in:
 

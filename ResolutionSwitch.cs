@@ -275,8 +275,13 @@ static class ResolutionSwitch
 
     static Mode Active()
     {
+        return ActiveIn(modes);
+    }
+
+    static Mode ActiveIn(List<Mode> list)
+    {
         var current = Current();
-        var matches = modes.Where(m => m.Width == current.dmPelsWidth && m.Height == current.dmPelsHeight).ToList();
+        var matches = list.Where(m => m.Width == current.dmPelsWidth && m.Height == current.dmPelsHeight).ToList();
         return matches.FirstOrDefault(m => m.Name == lastApplied) ?? matches.FirstOrDefault();
     }
 
@@ -304,6 +309,7 @@ static class ResolutionSwitch
         string detail = string.Format("\n{0} × {1} · {2} Hz", current.dmPelsWidth, current.dmPelsHeight, current.dmDisplayFrequency);
         string name = active != null ? active.Name : "Other resolution";
         tray.Text = name.Substring(0, Math.Min(name.Length, TooltipLimit - detail.Length)) + detail;
+        if (settingsWindow != null) settingsWindow.Invalidate(true);
     }
 
     static string RunCommand()
@@ -573,6 +579,9 @@ static class ResolutionSwitch
         int textLeft = left + Scaled(38);
         TextRenderer.DrawText(e.Graphics, mode.Name, box.Font, new Point(textLeft, bounds.Y + Scaled(6)), box.ForeColor);
         TextRenderer.DrawText(e.Graphics, Describe(mode), box.Font, new Point(textLeft, bounds.Y + Scaled(25)), HintColor());
+        if (mode == ActiveIn(list))
+            TextRenderer.DrawText(e.Graphics, "Current", box.Font, new Rectangle(bounds.X, bounds.Y + Scaled(6), bounds.Width - Scaled(10), Scaled(20)),
+                AppsAreDark() ? Color.FromArgb(76, 194, 255) : SystemColors.HotTrack, TextFormatFlags.Right);
         using (var glyphFont = new Font(iconFont, Scaled(20), FontStyle.Regular, GraphicsUnit.Pixel))
         using (var glyphBrush = new SolidBrush(box.ForeColor))
         {
@@ -599,6 +608,7 @@ static class ResolutionSwitch
         };
         box.DrawItem += (s, e) => DrawModeItem(box, list, e);
 
+        var switchTo = NewButton("Switch to");
         var add = NewButton("Add...");
         var edit = NewButton("Edit...");
         var remove = NewButton("Remove");
@@ -607,14 +617,14 @@ static class ResolutionSwitch
         var close = NewButton("Close");
         close.Click += (s, e) => form.Close();
         form.CancelButton = close;
-        const string orderHint = "Left-click the taskbar icon to go to the next mode in this order. Changes are saved straight away.";
+        const string orderHint = "Each left-click on the taskbar icon goes to the next mode in this list, top to bottom, then back to the first. Changes are saved straight away.";
         var hint = HintLabel(orderHint + (skippedLines.Count == 0 ? "" :
             "\n\nThese lines in modes.txt can't be read. They will be removed when you change anything here:\n" + string.Join("\n", skippedLines)), Scaled(360));
 
         Action showButtons = () =>
         {
             int i = box.SelectedIndex;
-            edit.Enabled = remove.Enabled = i >= 0;
+            switchTo.Enabled = edit.Enabled = remove.Enabled = i >= 0;
             up.Enabled = i > 0;
             down.Enabled = i >= 0 && i < list.Count - 1;
         };
@@ -653,6 +663,7 @@ static class ResolutionSwitch
             list.Add(added);
             changed(list.Count - 1);
         };
+        switchTo.Click += (s, e) => SwitchTo(list[box.SelectedIndex]);
         edit.Click += (s, e) => editSelected();
         box.DoubleClick += (s, e) => editSelected();
         remove.Click += (s, e) =>
@@ -671,7 +682,8 @@ static class ResolutionSwitch
 
         var side = Row(FlowDirection.TopDown);
         side.Margin = new Padding(Scaled(8), 0, 0, 0);
-        side.Controls.AddRange(new Control[] { add, edit, remove, up, down });
+        switchTo.Margin = new Padding(Scaled(3), Scaled(3), Scaled(3), Scaled(15));
+        side.Controls.AddRange(new Control[] { switchTo, add, edit, remove, up, down });
         var grid = Grid(2);
         grid.Controls.Add(box, 0, 0);
         grid.Controls.Add(side, 1, 0);

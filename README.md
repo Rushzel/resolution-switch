@@ -37,7 +37,9 @@ It needs .NET Framework 4.8, which comes with Windows 10 (version 1903 and later
 
 ## Editing modes
 
-Right-click the icon and choose **Edit modes**. A window lists your modes in the order a left-click goes through them.
+Right-click the icon and choose **Edit modes**. A window lists your modes in the order a left-click goes through them: each click moves to the next one, top to bottom, then back to the first. The mode that is on now is marked **Current**.
+
+- **Switch to** changes the screen to the selected mode straight away.
 
 - **Add** or **Edit** (or double-click a mode) opens a small form with the name, the resolution, the refresh rate and **Stretch to fill the screen**. The resolution and refresh rate lists only show what your monitor offers. The refresh rate can be **Highest**, which follows whatever is highest for that resolution, or a fixed rate such as 144 Hz.
 - **Remove**, **Move up** and **Move down** do what they say.

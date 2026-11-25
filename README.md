@@ -1,12 +1,22 @@
 # Resolution Switch
 
+[![Latest release](https://img.shields.io/github/v/release/Rushzel/resolution-switch)](https://github.com/Rushzel/resolution-switch/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Rushzel/resolution-switch/total)](https://github.com/Rushzel/resolution-switch/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/Rushzel/resolution-switch/build.yml?branch=main)](https://github.com/Rushzel/resolution-switch/actions)
+![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)
+[![MIT license](https://img.shields.io/github/license/Rushzel/resolution-switch)](LICENSE)
+
 A taskbar icon that switches your screen resolution in one click and keeps your refresh rate where it should be.
+
+<p align="center"><img src="docs/taskbar.png" width="500" alt="The Resolution Switch icon in the Windows taskbar corner, showing the stretched sides icon"></p>
 
 I made it because I play some games stretched at 4:3 and go back to native for everything else. Windows Settings drops my monitor to 60 Hz every time I change the resolution, and the graphics control panel takes forever to open. This does it from the taskbar.
 
+**[Download ResolutionSwitch.exe](https://github.com/Rushzel/resolution-switch/releases/latest/download/ResolutionSwitch.exe)**
+
 ## Get it
 
-1. Download `ResolutionSwitch.exe` from the [latest release](../../releases/latest).
+1. Download `ResolutionSwitch.exe` from the [latest release](https://github.com/Rushzel/resolution-switch/releases/latest).
 2. Put it in its own folder, like `%LOCALAPPDATA%\Programs\Resolution Switch`, and run it.
 3. It isn't signed, so SmartScreen will warn you. Click **More info**, then **Run anyway**. Or build it yourself, it's one file.
 
@@ -26,11 +36,15 @@ Every switch uses the highest refresh rate your monitor has for that resolution,
 
 Right-click and choose **Edit modes**.
 
+<p align="center"><img src="docs/edit-modes.png" width="502" alt="The Edit modes window listing Native, 4:3 stretched and Movies, with Switch to, Add, Edit, Remove, Move up and Move down buttons"></p>
+
 - **Switch to** changes to the selected mode.
 - **Add** or **Edit** a mode: name, resolution, refresh rate, stretch and icon. The lists only show what your monitor supports.
 - **Remove**, **Move up** and **Move down**. The order is the order left-click goes through.
 
 Changes save right away.
+
+<p align="center"><img src="docs/edit-mode.png" width="339" alt="The Edit mode form with name, resolution, refresh rate, a stretch checkbox and a row of icons to pick from"></p>
 
 ## The modes file
 

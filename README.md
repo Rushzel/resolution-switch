@@ -1,5 +1,7 @@
 # Resolution Switch
 
+> **Resolution Switch is now part of [Nook](https://github.com/Rushzel/nook)**, one app with the same tray icons and a window for every setting. This repository is archived; new versions come out there.
+
 [![Latest release](https://img.shields.io/github/v/release/Rushzel/resolution-switch)](https://github.com/Rushzel/resolution-switch/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Rushzel/resolution-switch/total)](https://github.com/Rushzel/resolution-switch/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/Rushzel/resolution-switch/build.yml?branch=main)](https://github.com/Rushzel/resolution-switch/actions)
